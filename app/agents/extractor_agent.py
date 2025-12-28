@@ -27,8 +27,29 @@ class ExtractorAgent:
         return None
 
     def _extract_item(self, text: str) -> Optional[str]:
-        m = re.search(r"\bbolt[s]?\b", text, re.IGNORECASE)
-        return "bolts" if m else None
+        # 1) Prefer explicit "Item: ...."
+        m = re.search(r"^\s*item\s*:\s*(.+)$", text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            item = m.group(1).strip()
+            # corta se vier com "Unit price", "Delivery", etc na mesma linha (às vezes acontece)
+            item = re.split(r"\b(unit price|price|delivery|payment|terms)\b", item, flags=re.IGNORECASE)[0].strip()
+            return item if item else None
+
+        # 2) Common product keywords (extend as needed)
+        if re.search(r"\bbolt[s]?\b", text, re.IGNORECASE):
+            return "bolts"
+        if re.search(r"\bnail[s]?\b", text, re.IGNORECASE):
+            return "nails"
+        if re.search(r"\bscrew[s]?\b", text, re.IGNORECASE):
+            return "screws"
+
+        # 3) Pattern like: "offers <item> at $0.30"
+        m = re.search(r"offers\s+(.+?)\s+at\s+[\$€]\s*\d", text, re.IGNORECASE)
+        if m:
+            item = m.group(1).strip()
+            return item if item else None
+
+        return None
 
     def _extract_unit_price(self, text: str):
         # euro

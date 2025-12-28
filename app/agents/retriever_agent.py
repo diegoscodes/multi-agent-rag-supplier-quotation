@@ -85,6 +85,12 @@ class RetrieverAgent:
 
         return offers
 
+    def reset_store(self) -> None:
+        """
+        Clears the vector store collection to avoid duplicates across uploads.
+        Intended for dev/demo batch uploads.
+        """
+        self.vector_store.reset()
 
 # -------------------------------------------------
 # Singleton instance (shared across the application)

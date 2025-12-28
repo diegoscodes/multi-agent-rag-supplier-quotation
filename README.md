@@ -22,7 +22,7 @@ The application is containerized using Docker and orchestrated via Docker Compos
 
 ## Project Structure
 The project follows a clean and explicit directory structure that separates API layers, agents, services, models, and storage components.
-
+```
 app/
 ├── __init__.py
 ├── main.py
@@ -30,6 +30,7 @@ app/
 │   ├── __init__.py
 │   ├── evaluator_agent.py
 │   ├── extractor_agent.py
+│   ├── product_match_agent.py
 │   └── retriever_agent.py
 ├── api/
 │   ├── query_api.py
@@ -41,28 +42,47 @@ app/
 │   ├── __init__.py
 │   ├── embeddings.py
 │   ├── llm_service.py
+│   ├── query_parsing.py
 │   └── vector_store.py
-├── storage/
-│   └── offer_store.py
+└── storage/
+    ├── __init__.py
+    └── offer_store.py
 
-chroma_db/
+.chroma/ 
+
+docs/                 
+└── runbook.md
+
 tests/
+├── test_llm.py
+├── test_pipeline.py
+├── test_product_match.py
+└── test_query_parsing.py
+
 .env
+.gitignore
 docker-compose.yml
 Dockerfile
+pytest.ini
 README.md
 requirements.txt
+
+```
 
 ---
 
 ## Agent Architecture
-The intelligent core of the system is implemented using three cooperating agents, each with a clearly defined responsibility.
+The intelligent core of the system is implemented using four cooperating agents, each with a clearly defined responsibility.
 
 The ExtractorAgent processes raw supplier quotation text and converts unstructured information into structured commercial offers. It extracts supplier names, item descriptions, unit prices, delivery times, payment terms, and optional internal notes. A hybrid approach combining rule-based extraction and an LLM fallback is used to improve robustness.
 
 The RetrieverAgent stores structured offers as vector embeddings in the Chroma vector database and retrieves the most relevant offers based on semantic similarity to the user query. This step ensures that only contextually relevant quotations are evaluated.
 
 The EvaluatorAgent scores and ranks retrieved offers using weighted criteria such as price, delivery time, and risk assumptions. In addition, it generates a concise, grounded natural-language explanation that summarizes the decision-making process and highlights relevant trade-offs between competing offers. This explanation is returned to the user as the reasoning field in the API response.
+
+In addition, the system includes a ProductMatchAgent, which enforces a hard business rule ensuring that the product requested by the user matches the product offered by suppliers.
+
+After semantic retrieval, each candidate offer is validated against the target product extracted from the user query using embedding similarity. Offers that do not meet the similarity threshold are rejected before evaluation. This prevents semantically related but incorrect products from being ranked or selected.
 
 ---
 
@@ -72,7 +92,9 @@ The EvaluatorAgent scores and ranks retrieved offers using weighted criteria suc
 3. Structured offers are embedded and stored in the vector database.
 4. The user submits a natural-language query with constraints.
 5. Relevant offers are retrieved using semantic similarity search.
-6. The EvaluatorAgent ranks offers and generates a reasoned recommendation.
+6. Retrieved offers are filtered by a product-level business rule to ensure product correctness.
+7. The EvaluatorAgent ranks valid offers and generates a reasoned recommendation.
+
 
 ---
 
@@ -116,6 +138,11 @@ Access the API documentation:
 http://127.0.0.1:8000/docs
 
 ---
+For a complete list of execution commands, test commands, Docker usage, and troubleshooting steps, see:
+
+**[docs/runbook.md](docs/runbook.md)**
+
+---
 
 ## Using the API
 
@@ -126,7 +153,7 @@ Endpoint:
 POST /upload
 
 Example request body:
-
+```
 {
   "texts": [
     "Supplier QuickFix Ltd offers 10mm steel bolts at €0.75 per unit. Delivery in 10 days. Payment terms Net 45.",
@@ -134,7 +161,7 @@ Example request body:
     "FastSupply Co offers bolts at €0.95 per unit with express delivery in 5 days. Payment terms Net 15."
   ]
 }
-
+```
 Behavior:
 Each upload resets the vector store to ensure deterministic evaluation and prevent duplicated offers.
 
@@ -147,25 +174,33 @@ Endpoint:
 POST /query
 
 Example request body:
-
+```
 {
   "query": "Find the best supplier for 10mm steel bolts deliverable within 7 days"
 }
-
+```
 Example response structure:
-
+```
 {
   "best_offer": { ... },
-  "ranking": [ ... ],
-  "reasoning": "..."
+  "ranking": [ ... },
+  "reasoning": "...",
+  "target_item": "...",
+  "product_match": {
+    "threshold": 0.7,
+    "kept": 1,
+    "rejected": 2,
+    "logs": [ ... ]
+  }
 }
-
+```
 The response includes the recommended supplier, a full ranking of evaluated offers, and a grounded explanation describing the trade-offs considered during the decision-making process.
 
 ---
 
 ## Design Decisions
 The vector database is reset on each upload to avoid duplicated offers and ensure deterministic behavior during evaluation. Delivery time is treated as a soft constraint unless explicitly specified as mandatory. All reasoning is strictly grounded on retrieved offers, preventing hallucinated prices, delivery times, or risk information.
+A dedicated product-matching step is applied after retrieval to ensure that only offers corresponding to the user-requested product are evaluated.
 
 ---
 
@@ -185,4 +220,4 @@ Docker and Docker Compose
 ---
 
 ## Author
-Developed by Diego Santos as part of a technical take-home assignment.
+Developed by Diego Santos as part of a technical assessment exploring multi-agent RAG architectures, semantic retrieval, and business rule validation.
