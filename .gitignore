@@ -1,6 +1,24 @@
-.venv/
-.idea/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.venv/
 .env
+
+# PyCharm
+.idea/
+
+# OS
+.DS_Store
+
+# Chroma / Vector DB local persistence
+.chroma/
 chroma_db/
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
