@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Banner.png" alt=" Multi-Agent RAG System for Supplier Quotation Analysis" width="100%">
+</p>
+
 # Multi-Agent RAG System for Supplier Quotation Analysis
 
 ## Overview
